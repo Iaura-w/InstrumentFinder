@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,7 +44,6 @@ class MainActivity : ComponentActivity() {
     @Composable
     fun FileUpload() {
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-//        var serverResponse by remember { mutableStateOf<String?>(null) }
         val viewModel: FileUploadViewModel by viewModels()
         var serverResponse = ""
 
@@ -99,6 +99,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Text("Send")
                 }
+            }
+            if (viewModel.loading) {
+                CircularProgressIndicator()
             }
             serverResponse = viewModel.serverResponse
             Log.d(TAG, serverResponse)
