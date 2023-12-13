@@ -2,8 +2,10 @@ package com.example.instrumentfinder
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -37,7 +39,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            FileUpload()
+            Column {
+                FileUpload()
+                Recording()
+            }
         }
     }
 
@@ -108,6 +113,61 @@ class MainActivity : ComponentActivity() {
             Text("Response:\n $serverResponse")
         }
     }
+
+    @Composable
+    fun Recording() {
+        var isRecording by remember { mutableStateOf(false) }
+        val mediaRecorder: MediaRecorder? by remember { mutableStateOf(null) }
+
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text("Audio Recording")
+
+            Button(
+                onClick = {
+                    isRecording = !isRecording
+                    if (isRecording) {
+                        startRecording(mediaRecorder)
+                    } else {
+                        stopRecording(mediaRecorder)
+                    }
+                }
+            ) {
+                Text(if (isRecording) "Stop Recording" else "Start Recording")
+            }
+        }
+    }
+
+    private fun startRecording(mediaRecorder: MediaRecorder?) {
+        try {
+            val outputPath =
+                getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "recorded_file.3gp"
+            mediaRecorder?.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFile(outputPath)
+                prepare()
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun stopRecording(mediaRecorder: MediaRecorder?) {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
 
     private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
         val contentResolver: ContentResolver = context.contentResolver
