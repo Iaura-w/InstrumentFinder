@@ -2,10 +2,10 @@ package com.example.instrumentfinder
 
 import android.content.ContentResolver
 import android.content.Context
-import android.media.MediaRecorder
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -83,41 +83,39 @@ class MainActivity : ComponentActivity() {
                 )
                 Log.d(TAG, serverResponse)
 
-                Button(
-                    onClick = {
-                        if (uri != null) {
-                            val uriFile = uriContentToUriFile(this@MainActivity, uri)
+                if (viewModel.loading) {
+                    Button(onClick = { viewModel.cancelUpload() }) {
+                        Text("Cancel")
+                    }
+                    CircularProgressIndicator()
+                } else {
+                    Button(onClick = {
+                        val uriFile = uriContentToUriFile(this@MainActivity, uri)
 
-                            Log.d(TAG, "uri file: $uriFile")
+                        Log.d(TAG, "uri file: $uriFile")
 
-                            serverResponse = "Uploading file..."
-                            if (uriFile != null) {
-                                viewModel.uploadFile(uriFile)
-                            } else {
-                                serverResponse = "File does not exist"
-                            }
+                        serverResponse = "Uploading file..."
+                        if (uriFile != null) {
+                            viewModel.uploadFile(uriFile)
                         } else {
                             serverResponse = "File does not exist"
                         }
 
+                    }) {
+                        Text("Send")
                     }
-                ) {
-                    Text("Send")
                 }
+
+                serverResponse = viewModel.serverResponse
+                Text("Response:\n $serverResponse")
             }
-            if (viewModel.loading) {
-                CircularProgressIndicator()
-            }
-            serverResponse = viewModel.serverResponse
-            Log.d(TAG, serverResponse)
-            Text("Response:\n $serverResponse")
         }
     }
 
+
     @Composable
     fun Recording() {
-        var isRecording by remember { mutableStateOf(false) }
-        val mediaRecorder: MediaRecorder? by remember { mutableStateOf(null) }
+        val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
 
         Column(
             modifier = Modifier.padding(16.dp),
@@ -127,47 +125,13 @@ class MainActivity : ComponentActivity() {
 
             Button(
                 onClick = {
-                    isRecording = !isRecording
-                    if (isRecording) {
-                        startRecording(mediaRecorder)
-                    } else {
-                        stopRecording(mediaRecorder)
-                    }
+                    startActivity(recordAudioIntent)
                 }
             ) {
-                Text(if (isRecording) "Stop Recording" else "Start Recording")
+                Text("Record Audio")
             }
         }
     }
-
-    private fun startRecording(mediaRecorder: MediaRecorder?) {
-        try {
-            val outputPath =
-                getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath + "recorded_file.3gp"
-            mediaRecorder?.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                setOutputFile(outputPath)
-                prepare()
-                start()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun stopRecording(mediaRecorder: MediaRecorder?) {
-        try {
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
 
     private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
         val contentResolver: ContentResolver = context.contentResolver
@@ -176,7 +140,7 @@ class MainActivity : ComponentActivity() {
         try {
             val inputStream: InputStream? = contentResolver.openInputStream(contentUri)
             if (inputStream != null) {
-                val outputFile = File(context.cacheDir, fileName)
+                val outputFile = File(context.cacheDir, fileName.toString())
                 val outputStream = FileOutputStream(outputFile)
                 val buffer = ByteArray(1024)
                 var read: Int
