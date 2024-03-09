@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">InstrumentFinder</string>
+    <string name="history_title">Recognition History</string>
 </resources>

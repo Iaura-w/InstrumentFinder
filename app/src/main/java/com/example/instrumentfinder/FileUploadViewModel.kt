@@ -1,9 +1,11 @@
 package com.example.instrumentfinder
 
 import RetrofitInstance
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -26,13 +28,15 @@ class FileUploadViewModel : ViewModel() {
     private var currentCall: Call<ResponseBody>? = null
     private var _serverResponse by mutableStateOf("")
     private var _loading by mutableStateOf(false)
+    private val _uploadHistory = mutableStateListOf<Pair<String, String>>()
+    val uploadHistory: List<Pair<String, String>> = _uploadHistory
 
     val serverResponse: String
         get() = _serverResponse
     val loading: Boolean
         get() = _loading
 
-    fun uploadFile(fileUri: Uri) {
+    fun uploadFile(fileUri: Uri, fileName: String, context: Context) {
         _loading = true
         val startTime = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
@@ -48,7 +52,7 @@ class FileUploadViewModel : ViewModel() {
                 ) {
                     val endTime = System.currentTimeMillis()
                     logResponseTime(startTime, endTime)
-                    handleResponse(response)
+                    handleResponse(response, fileName, context)
                 }
 
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
@@ -67,7 +71,11 @@ class FileUploadViewModel : ViewModel() {
         _serverResponse = "Upload cancelled"
     }
 
-    private fun handleResponse(response: Response<ResponseBody>) {
+    private fun handleResponse(
+        response: Response<ResponseBody>,
+        fileName: String,
+        context: Context
+    ) {
         _loading = false
         val gson = Gson()
         if (response.isSuccessful) {
@@ -76,6 +84,7 @@ class FileUploadViewModel : ViewModel() {
                 _serverResponse = "\n" + responseEntity.result
                 logResponse(response, responseEntity)
             }
+            History.saveHistory(context, Pair(fileName, _serverResponse))
         } else {
             response.errorBody()?.let {
                 val responseEntity = gson.fromJson(it.string(), ResponseEntity::class.java)

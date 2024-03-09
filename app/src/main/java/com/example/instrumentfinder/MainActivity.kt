@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import java.io.File
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
         val viewModel: FileUploadViewModel by viewModels()
         var serverResponse = ""
+        val context = LocalContext.current
 
         val filePickerLauncher: ActivityResultLauncher<String> = rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
@@ -73,13 +75,12 @@ class MainActivity : ComponentActivity() {
             }
 
             selectedFileUri?.let { uri ->
+                val fileName = uriContentToUriFile(
+                    this@MainActivity,
+                    uri
+                )?.lastPathSegment ?: "Unknown"
                 Text(
-                    "Selected File: ${
-                        uriContentToUriFile(
-                            this@MainActivity,
-                            uri
-                        )?.lastPathSegment ?: "Unknown"
-                    }"
+                    "Selected File: $fileName"
                 )
                 Log.d(TAG, serverResponse)
 
@@ -96,7 +97,7 @@ class MainActivity : ComponentActivity() {
 
                         serverResponse = "Uploading file..."
                         if (uriFile != null) {
-                            viewModel.uploadFile(uriFile)
+                            viewModel.uploadFile(uriFile, fileName, context)
                         } else {
                             serverResponse = "File does not exist"
                         }
@@ -108,6 +109,14 @@ class MainActivity : ComponentActivity() {
 
                 serverResponse = viewModel.serverResponse
                 Text("Response:\n $serverResponse")
+
+            }
+            Button(onClick = {
+                val intent = Intent(context, HistoryActivity::class.java)
+                intent.putExtra("HISTORY_LIST", ArrayList(viewModel.uploadHistory))
+                startActivity(intent)
+            }) {
+                Text("History")
             }
         }
     }
