@@ -16,9 +16,22 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,8 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import com.example.instrumentfinder.ui.theme.InstrumentFinderTheme
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -40,15 +55,23 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            Column {
-                FileUpload()
-                Recording()
+            InstrumentFinderTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    Column {
+                        FileUpload()
+                    }
+                }
             }
         }
+
     }
 
+    @Preview
     @Composable
     fun FileUpload() {
+        var selectedOption by remember { mutableStateOf(0) }
+        val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
+
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
         val viewModel: FileUploadViewModel by viewModels()
         var serverResponse = ""
@@ -60,84 +83,90 @@ class MainActivity : ComponentActivity() {
             selectedFileUri = uri
         }
 
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ElevatedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
-            Text("Choose audio file")
-
-            Button(
-                onClick = {
-                    filePickerLauncher.launch("audio/*")
-                }
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Choose File")
-            }
-
-            selectedFileUri?.let { uri ->
-                val fileName = uriContentToUriFile(
-                    this@MainActivity,
-                    uri
-                )?.lastPathSegment ?: "Unknown"
-                Text(
-                    "Selected File: $fileName"
-                )
-                Log.d(TAG, serverResponse)
-
-                if (viewModel.loading) {
-                    Button(onClick = { viewModel.cancelUpload() }) {
-                        Text("Cancel")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    FilledTonalButton(onClick = { filePickerLauncher.launch("audio/*") }) {
+                        Text("Choose File")
                     }
-                    CircularProgressIndicator()
-                } else {
+
                     Button(onClick = {
-                        val uriFile = uriContentToUriFile(this@MainActivity, uri)
-
-                        Log.d(TAG, "uri file: $uriFile")
-
-                        serverResponse = "Uploading file..."
-                        if (uriFile != null) {
-                            viewModel.uploadFile(uriFile, fileName, context)
-                        } else {
-                            serverResponse = "File does not exist"
-                        }
-
+                        startActivity(recordAudioIntent)
                     }) {
-                        Text("Send")
+                        Text("Record")
+                    }
+
+                    OutlinedButton(onClick = {
+                        val intent = Intent(context, HistoryActivity::class.java)
+                        intent.putExtra("HISTORY_LIST", ArrayList(viewModel.uploadHistory))
+                        startActivity(intent)
+                    }) {
+                        Text("History")
                     }
                 }
 
-                serverResponse = viewModel.serverResponse
-                Text("Response:\n $serverResponse")
 
-            }
-            Button(onClick = {
-                val intent = Intent(context, HistoryActivity::class.java)
-                intent.putExtra("HISTORY_LIST", ArrayList(viewModel.uploadHistory))
-                startActivity(intent)
-            }) {
-                Text("History")
-            }
-        }
-    }
+                selectedFileUri?.let { uri ->
+                    val fileName = uriContentToUriFile(
+                        this@MainActivity,
+                        uri
+                    )?.lastPathSegment ?: "Unknown"
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                "Selected File: $fileName",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                    Log.d(TAG, serverResponse)
 
+                    if (viewModel.loading) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(onClick = { viewModel.cancelUpload() }) {
+                            Text("Cancel")
+                        }
+                    } else {
+                        ElevatedButton(onClick = {
+                            val uriFile = uriContentToUriFile(this@MainActivity, uri)
 
-    @Composable
-    fun Recording() {
-        val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
+                            Log.d(TAG, "uri file: $uriFile")
 
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Text("Audio Recording")
+                            serverResponse = "Uploading file..."
+                            if (uriFile != null) {
+                                viewModel.uploadFile(uriFile, fileName, context)
+                            } else {
+                                serverResponse = "File does not exist"
+                            }
 
-            Button(
-                onClick = {
-                    startActivity(recordAudioIntent)
+                        }) {
+                            Text("Send")
+                        }
+                    }
+
+                    serverResponse = viewModel.serverResponse
+                    Text("Result:\n $serverResponse")
+
                 }
-            ) {
-                Text("Record Audio")
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }

@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.instrumentfinder"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.instrumentfinder"
@@ -78,4 +78,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.2")
     // Android-Wave-Recorder
     implementation("com.github.squti:Android-Wave-Recorder:1.7.0")
+    // material 3
+    implementation("androidx.compose.material3:material3:1.2.1")
+    implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
+    implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.0.0-alpha05")
+
 }
