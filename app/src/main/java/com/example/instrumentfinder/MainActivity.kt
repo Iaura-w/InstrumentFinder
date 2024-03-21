@@ -56,7 +56,6 @@ import java.io.InputStream
 private const val TAG = "APP"
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -64,22 +63,28 @@ class MainActivity : ComponentActivity() {
             InstrumentFinderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column {
-                        TopAppBar(
-                            title = { Text(getString(R.string.app_name)) },
-                            colors = TopAppBarColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                                actionIconContentColor = MaterialTheme.colorScheme.onSecondary,
-                                scrolledContainerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        )
+                        TopBar()
                         MainApp()
                     }
                 }
             }
         }
 
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun TopBar() {
+        TopAppBar(
+            title = { Text(getString(R.string.app_name)) },
+            colors = TopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                actionIconContentColor = MaterialTheme.colorScheme.onSecondary,
+                scrolledContainerColor = MaterialTheme.colorScheme.secondary
+            )
+        )
     }
 
     @Preview
