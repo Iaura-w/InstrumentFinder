@@ -14,7 +14,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +56,7 @@ import java.io.InputStream
 private const val TAG = "APP"
 
 class MainActivity : ComponentActivity() {
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -63,7 +64,17 @@ class MainActivity : ComponentActivity() {
             InstrumentFinderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     Column {
-                        FileUpload()
+                        TopAppBar(
+                            title = { Text(getString(R.string.app_name)) },
+                            colors = TopAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                                navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                                actionIconContentColor = MaterialTheme.colorScheme.onSecondary,
+                                scrolledContainerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        )
+                        MainApp()
                     }
                 }
             }
@@ -71,10 +82,9 @@ class MainActivity : ComponentActivity() {
 
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Preview
     @Composable
-    fun FileUpload() {
+    fun MainApp() {
         val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
 
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
@@ -87,17 +97,11 @@ class MainActivity : ComponentActivity() {
         ) { uri: Uri? ->
             selectedFileUri = uri
         }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            TopAppBar(
-                title = { Text(getString(R.string.app_name)) },
-                modifier = Modifier.background(MaterialTheme.colorScheme.primary)
-            )
-
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -142,13 +146,13 @@ class MainActivity : ComponentActivity() {
                             uri
                         )?.lastPathSegment ?: "Unknown"
 
-                        Text("File Upload", style = MaterialTheme.typography.titleSmall)
+                        Text("File Upload", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             fileName,
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -182,7 +186,7 @@ class MainActivity : ComponentActivity() {
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("Server response", style = MaterialTheme.typography.titleSmall)
+                        Text("Result", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(8.dp))
@@ -190,7 +194,7 @@ class MainActivity : ComponentActivity() {
                         serverResponse = viewModel.serverResponse
                         if (serverResponse.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            Text(serverResponse)
+                            Text(serverResponse, style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
