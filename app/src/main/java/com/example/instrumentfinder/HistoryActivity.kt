@@ -74,7 +74,7 @@ class HistoryActivity : ComponentActivity() {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("File: ${item.filename}", style = MaterialTheme.typography.titleMedium)
                         Text("Date: ${item.date}", style = MaterialTheme.typography.titleSmall)
-                        Text("Result: ${item.result}", style = MaterialTheme.typography.bodySmall)
+                        Text(item.result, style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
