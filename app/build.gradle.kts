@@ -82,5 +82,9 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.compose.material3:material3-window-size-class:1.2.1")
     implementation("androidx.compose.material3:material3-adaptive-navigation-suite:1.0.0-alpha05")
+    //ffmpeg
+//    implementation("com.arthenica:ffmpeg-kit-full:4.5.1-1")
+    //audioconverter
+//    implementation("com.github.Alessandrovito:AndroidAudioConverterEh:1.3")
 
 }

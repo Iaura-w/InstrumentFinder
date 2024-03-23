@@ -81,7 +81,8 @@ class FileUploadViewModel : ViewModel() {
         if (response.isSuccessful) {
             response.body()?.let {
                 val responseEntity = gson.fromJson(it.string(), ResponseEntity::class.java)
-                _serverResponse = "\n" + responseEntity.result
+                val formattedResponse = reformatResponse(responseEntity)
+                _serverResponse = "OK\n$formattedResponse"
                 logResponse(response, responseEntity)
             }
             History.saveHistory(context, Pair(fileName, _serverResponse))
@@ -93,6 +94,17 @@ class FileUploadViewModel : ViewModel() {
             }
         }
     }
+
+    private fun reformatResponse(responseEntity: ResponseEntity) =
+        responseEntity.result.lines()
+            .filter { it.isNotBlank() }
+            .joinToString("\n") { line ->
+                val parts = line.split(' ')
+                val instrument = parts.dropLast(1).joinToString(" ").uppercase()
+                val percentage =
+                    "%.2f".format(parts.last().removeSuffix("%").toDouble()) + "%"
+                "$instrument: $percentage"
+            }
 
     private fun logResponse(response: Response<*>, responseEntity: ResponseEntity) {
         Log.d(TAG2, "response code: ${response.code()}")
