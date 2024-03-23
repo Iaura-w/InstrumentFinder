@@ -47,20 +47,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.example.instrumentfinder.ui.theme.InstrumentFinderTheme
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.text.NumberFormat
+import java.util.Locale
 
 private const val TAG = "APP"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
             InstrumentFinderTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
@@ -89,7 +89,6 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    @Preview
     @Composable
     fun MainApp() {
         val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
@@ -122,7 +121,7 @@ class MainActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     FilledTonalButton(onClick = { filePickerLauncher.launch("audio/*") }) {
-                        Text("Choose File")
+                        Text("File")
                     }
 
                     Button(onClick = {
@@ -215,6 +214,7 @@ class MainActivity : ComponentActivity() {
                 Log.d(TAG, "is instrument found $isInstrumentFound")
 
                 if (isInstrumentFound) {
+                    isInstrumentFound = false
                     val highestInstrument = getHighestInstrument(serverResponse)
                     if (highestInstrument.isNotEmpty()) {
                         OutlinedCard(
@@ -233,7 +233,7 @@ class MainActivity : ComponentActivity() {
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     highestInstrument,
-                                    style = MaterialTheme.typography.displaySmall,
+                                    style = MaterialTheme.typography.headlineMedium,
                                     textAlign = TextAlign.Center,
                                     modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
                                 )
@@ -241,70 +241,78 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-
-}
-
-private fun getHighestInstrument(serverResponse: String): String {
-    if (!serverResponse.startsWith("OK")) return ""
-
-    return serverResponse.lineSequence()
-        .drop(1)
-        .map { line ->
-            val parts = line.split(' ')
-            val instrument = parts.dropLast(1).joinToString(" ").removeSuffix(":")
-            val percent = parts.last().removeSuffix("%").toDouble()
-            instrument to percent
-        }
-        .maxByOrNull { it.second }
-        ?.first
-        ?: ""
-}
-
-private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
-    val contentResolver: ContentResolver = context.contentResolver
-    val fileName = getFileNameFromContentUri(context, contentUri)
-
-    try {
-        val inputStream: InputStream? = contentResolver.openInputStream(contentUri)
-        if (inputStream != null) {
-            val outputFile = File(context.cacheDir, fileName.toString())
-            val outputStream = FileOutputStream(outputFile)
-            val buffer = ByteArray(1024)
-            var read: Int
-
-            while (inputStream.read(buffer).also { read = it } > 0) {
-                outputStream.write(buffer, 0, read)
-            }
-            outputStream.flush()
-            outputStream.close()
-            inputStream.close()
-
-            return outputFile.toUri()
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-
-    return null
-}
-
-private fun getFileNameFromContentUri(context: Context, contentUri: Uri): String? {
-    val contentResolver: ContentResolver = context.contentResolver
-    val cursor = contentResolver.query(contentUri, null, null, null, null)
-
-    cursor?.use {
-        if (it.moveToFirst()) {
-            val nameColumnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameColumnIndex != -1) {
-                return it.getString(nameColumnIndex)
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
+
     }
-    return null
+
+    private fun getHighestInstrument(serverResponse: String): String {
+        if (!serverResponse.startsWith("OK")) return ""
+
+        val numberFormat = NumberFormat.getInstance(Locale.getDefault())
+
+        return serverResponse.lineSequence()
+            .drop(1)
+            .mapNotNull { line ->
+                val parts = line.split(' ')
+                if (parts.size > 1) {
+                    try {
+                        val instrument = parts.dropLast(1).joinToString(" ").removeSuffix(":")
+                        val percentString = parts.last().removeSuffix("%").replace(',', '.')
+                        val percent = numberFormat.parse(percentString)?.toDouble() ?: 0.0
+                        instrument to percent
+                    } catch (e: Exception) {
+                        null
+                    }
+                } else null
+            }
+            .maxByOrNull { it.second }
+            ?.first
+            ?: ""
+    }
+
+    private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
+        val contentResolver: ContentResolver = context.contentResolver
+        val fileName = getFileNameFromContentUri(context, contentUri)
+
+        try {
+            val inputStream: InputStream? = contentResolver.openInputStream(contentUri)
+            if (inputStream != null) {
+                val outputFile = File(context.cacheDir, fileName.toString())
+                val outputStream = FileOutputStream(outputFile)
+                val buffer = ByteArray(1024)
+                var read: Int
+
+                while (inputStream.read(buffer).also { read = it } > 0) {
+                    outputStream.write(buffer, 0, read)
+                }
+                outputStream.flush()
+                outputStream.close()
+                inputStream.close()
+
+                return outputFile.toUri()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return null
+    }
+
+    private fun getFileNameFromContentUri(context: Context, contentUri: Uri): String? {
+        val contentResolver: ContentResolver = context.contentResolver
+        val cursor = contentResolver.query(contentUri, null, null, null, null)
+
+        cursor?.use {
+            if (it.moveToFirst()) {
+                val nameColumnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameColumnIndex != -1) {
+                    return it.getString(nameColumnIndex)
+                }
+            }
+        }
+        return null
+    }
 }
 
