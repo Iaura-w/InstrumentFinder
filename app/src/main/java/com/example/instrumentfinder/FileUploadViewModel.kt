@@ -2,15 +2,16 @@ package com.example.instrumentfinder
 
 import RetrofitInstance
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -21,22 +22,33 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private const val TAG2 = "APP2"
 
-class FileUploadViewModel : ViewModel() {
+class FileUploadViewModel(private val context: Context) : ViewModel() {
     private var currentCall: Call<ResponseBody>? = null
     private var _serverResponse by mutableStateOf("")
     private var _loading by mutableStateOf(false)
-    private val _uploadHistory = mutableStateListOf<Pair<String, String>>()
-    val uploadHistory: List<Pair<String, String>> = _uploadHistory
+
+    companion object {
+        private const val HISTORY_PREFS = "HistoryPrefs"
+        private const val HISTORY_KEY = "UploadHistory"
+        private const val MAX_HISTORY_SIZE = 10
+    }
+
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(HISTORY_PREFS, Context.MODE_PRIVATE)
+    }
 
     val serverResponse: String
         get() = _serverResponse
     val loading: Boolean
         get() = _loading
 
-    fun uploadFile(fileUri: Uri, fileName: String, context: Context) {
+    fun uploadFile(fileUri: Uri, fileName: String) {
         _loading = true
         val startTime = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
@@ -52,7 +64,7 @@ class FileUploadViewModel : ViewModel() {
                 ) {
                     val endTime = System.currentTimeMillis()
                     logResponseTime(startTime, endTime)
-                    handleResponse(response, fileName, context)
+                    handleResponse(response, fileName)
                 }
 
                 override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
@@ -73,8 +85,7 @@ class FileUploadViewModel : ViewModel() {
 
     private fun handleResponse(
         response: Response<ResponseBody>,
-        fileName: String,
-        context: Context
+        fileName: String
     ) {
         _loading = false
         val gson = Gson()
@@ -84,8 +95,8 @@ class FileUploadViewModel : ViewModel() {
                 val formattedResponse = reformatResponse(responseEntity)
                 _serverResponse = "OK\n$formattedResponse"
                 logResponse(response, responseEntity)
+                saveToHistory(fileName, "$formattedResponse\n")
             }
-            History.saveHistory(context, Pair(fileName, _serverResponse))
         } else {
             response.errorBody()?.let {
                 val responseEntity = gson.fromJson(it.string(), ResponseEntity::class.java)
@@ -115,5 +126,31 @@ class FileUploadViewModel : ViewModel() {
     private fun logResponseTime(startTime: Long, endTime: Long) {
         val responseTime = endTime - startTime
         Log.d(TAG2, "Response time: $responseTime ms")
+    }
+
+    private fun saveToHistory(filename: String, result: String) {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        val currentDate = dateFormat.format(Date())
+        val historyItem = HistoryItem(filename, currentDate, result)
+
+        val history = loadHistory().toMutableList()
+        if (history.size == MAX_HISTORY_SIZE) {
+            history.removeAt(0)
+        }
+        history.add(historyItem)
+
+        val editor = prefs.edit()
+        editor.putString(HISTORY_KEY, Gson().toJson(history))
+        editor.apply()
+    }
+
+    fun loadHistory(): List<HistoryItem> {
+        val historyJson = prefs.getString(HISTORY_KEY, "")
+        return if (historyJson.isNullOrEmpty()) {
+            emptyList()
+        } else {
+            val type = object : TypeToken<List<HistoryItem>>() {}.type
+            Gson().fromJson(historyJson, type)
+        }
     }
 }

@@ -62,16 +62,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            InstrumentFinderTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Column {
-                        TopBar()
-                        MainApp()
-                    }
+            val viewModel: FileUploadViewModel by viewModels() {
+                FileUploadViewModelFactory(applicationContext)
+            }
+            InstrumentFinderApp(viewModel)
+        }
+
+    }
+
+    @Composable
+    fun InstrumentFinderApp(viewModel: FileUploadViewModel) {
+        InstrumentFinderTheme {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TopBar()
+                    MainContent(viewModel)
                 }
             }
         }
-
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -90,11 +98,10 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun MainApp() {
+    fun MainContent(viewModel: FileUploadViewModel) {
         val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
 
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-        val viewModel: FileUploadViewModel by viewModels()
         var serverResponse = ""
         var isInstrumentFound by remember { mutableStateOf(false) }
         val context = LocalContext.current
@@ -131,9 +138,8 @@ class MainActivity : ComponentActivity() {
                     }
 
                     FilledTonalButton(onClick = {
-                        val intent = Intent(context, HistoryActivity::class.java)
-                        intent.putExtra("HISTORY_LIST", ArrayList(viewModel.uploadHistory))
-                        startActivity(intent)
+                        val intentHistory = Intent(context, HistoryActivity::class.java)
+                        startActivity(intentHistory)
                     }) {
                         Text("History")
                     }
@@ -181,7 +187,7 @@ class MainActivity : ComponentActivity() {
                                     Log.d(TAG, "uri file: $uriFile")
                                     serverResponse = "Uploading file..."
                                     if (uriFile != null) {
-                                        viewModel.uploadFile(uriFile, fileName, context)
+                                        viewModel.uploadFile(uriFile, fileName)
                                     } else {
                                         serverResponse = "File does not exist"
                                     }
