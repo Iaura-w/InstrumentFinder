@@ -36,7 +36,7 @@ class FileUploadViewModel(private val context: Context) : ViewModel() {
     companion object {
         private const val HISTORY_PREFS = "HistoryPrefs"
         private const val HISTORY_KEY = "UploadHistory"
-        private const val MAX_HISTORY_SIZE = 5
+        private const val MAX_HISTORY_SIZE = 10
     }
 
     private val prefs: SharedPreferences by lazy {

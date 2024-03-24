@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +68,6 @@ class MainActivity : ComponentActivity() {
             }
             InstrumentFinderApp(viewModel)
         }
-
     }
 
     @Composable
@@ -102,8 +102,7 @@ class MainActivity : ComponentActivity() {
         val recordAudioIntent = Intent(MediaStore.Audio.Media.RECORD_SOUND_ACTION)
 
         var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
-        var serverResponse = ""
-        var isInstrumentFound by remember { mutableStateOf(false) }
+        var serverResponse by remember { mutableStateOf("") }
         val context = LocalContext.current
 
         val filePickerLauncher: ActivityResultLauncher<String> = rememberLauncherForActivityResult(
@@ -111,6 +110,11 @@ class MainActivity : ComponentActivity() {
         ) { uri: Uri? ->
             selectedFileUri = uri
         }
+
+        LaunchedEffect(key1 = viewModel.serverResponse) {
+            serverResponse = viewModel.serverResponse
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -159,7 +163,7 @@ class MainActivity : ComponentActivity() {
                             uri
                         )?.lastPathSegment ?: "Unknown"
 
-                        Text("File Upload", style = MaterialTheme.typography.titleMedium)
+                        Text("Audio Analysis", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(8.dp))
@@ -194,12 +198,12 @@ class MainActivity : ComponentActivity() {
                                 },
                                 modifier = Modifier.align(Alignment.CenterHorizontally)
                             ) {
-                                Text("Send")
+                                Text("Check")
                             }
                         }
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text("Result", style = MaterialTheme.typography.titleMedium)
+                        Text("Identification Result", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(8.dp))
@@ -207,118 +211,131 @@ class MainActivity : ComponentActivity() {
                         serverResponse = viewModel.serverResponse
                         if (serverResponse.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(2.dp))
-                            if (serverResponse.contains("OK")) {
-                                isInstrumentFound = true
-                            }
-                            Text(
-                                serverResponse.lineSequence().drop(1).joinToString("\n"),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                    }
-                }
-                Log.d(TAG, "is instrument found $isInstrumentFound")
-
-                if (isInstrumentFound) {
-                    isInstrumentFound = false
-                    val highestInstrument = getHighestInstrument(serverResponse)
-                    if (highestInstrument.isNotEmpty()) {
-                        OutlinedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                            if (serverResponse.startsWith("OK")) {
                                 Text(
-                                    "Most Likely Instrument",
-                                    style = MaterialTheme.typography.titleMedium
+                                    serverResponse.lineSequence().drop(1).joinToString("\n"),
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                HorizontalDivider()
-                                Spacer(modifier = Modifier.height(8.dp))
+                            } else {
                                 Text(
-                                    highestInstrument,
-                                    style = MaterialTheme.typography.headlineMedium,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
+                                    serverResponse,
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
                             }
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-        }
-
-    }
-
-    private fun getHighestInstrument(serverResponse: String): String {
-        if (!serverResponse.startsWith("OK")) return ""
-
-        val numberFormat = NumberFormat.getInstance(Locale.getDefault())
-
-        return serverResponse.lineSequence()
-            .drop(1)
-            .mapNotNull { line ->
-                val parts = line.split(' ')
-                if (parts.size > 1) {
-                    try {
-                        val instrument = parts.dropLast(1).joinToString(" ").removeSuffix(":")
-                        val percentString = parts.last().removeSuffix("%").replace(',', '.')
-                        val percent = numberFormat.parse(percentString)?.toDouble() ?: 0.0
-                        instrument to percent
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else null
-            }
-            .maxByOrNull { it.second }
-            ?.first
-            ?: ""
-    }
-
-    private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
-        val contentResolver: ContentResolver = context.contentResolver
-        val fileName = getFileNameFromContentUri(context, contentUri)
-
-        try {
-            val inputStream: InputStream? = contentResolver.openInputStream(contentUri)
-            if (inputStream != null) {
-                val outputFile = File(context.cacheDir, fileName.toString())
-                val outputStream = FileOutputStream(outputFile)
-                val buffer = ByteArray(1024)
-                var read: Int
-
-                while (inputStream.read(buffer).also { read = it } > 0) {
-                    outputStream.write(buffer, 0, read)
-                }
-                outputStream.flush()
-                outputStream.close()
-                inputStream.close()
-
-                return outputFile.toUri()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        return null
-    }
-
-    private fun getFileNameFromContentUri(context: Context, contentUri: Uri): String? {
-        val contentResolver: ContentResolver = context.contentResolver
-        val cursor = contentResolver.query(contentUri, null, null, null, null)
-
-        cursor?.use {
-            if (it.moveToFirst()) {
-                val nameColumnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                if (nameColumnIndex != -1) {
-                    return it.getString(nameColumnIndex)
+                if (serverResponse.isNotEmpty()) {
+                    Log.d(TAG, "server response: $serverResponse")
+                    InstrumentCard(serverResponse = serverResponse)
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
         }
-        return null
+    }
+
+}
+
+@Composable
+fun InstrumentCard(serverResponse: String) {
+    val highestInstrument by remember(serverResponse) {
+        mutableStateOf(
+            if (serverResponse.startsWith("OK")) getHighestInstrument(serverResponse)
+            else ""
+        )
+    }
+    Log.d(TAG, "highest instrument: $highestInstrument")
+
+    if (highestInstrument.isNotEmpty()) {
+        OutlinedCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    "Most Likely Instrument",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    highestInstrument,
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(alignment = Alignment.CenterHorizontally)
+                )
+            }
+        }
     }
 }
 
+private fun getHighestInstrument(serverResponse: String): String {
+    if (!serverResponse.startsWith("OK")) return ""
+
+    val numberFormat = NumberFormat.getInstance(Locale.getDefault())
+
+    return serverResponse.lineSequence()
+        .drop(1)
+        .mapNotNull { line ->
+            val parts = line.split(' ')
+            if (parts.size > 1) {
+                try {
+                    val instrument = parts.dropLast(1).joinToString(" ").removeSuffix(":")
+                    val percentString = parts.last().removeSuffix("%").replace(',', '.')
+                    val percent = numberFormat.parse(percentString)?.toDouble() ?: 0.0
+                    instrument to percent
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+        }
+        .maxByOrNull { it.second }
+        ?.first
+        ?: ""
+}
+
+private fun uriContentToUriFile(context: Context, contentUri: Uri): Uri? {
+    val contentResolver: ContentResolver = context.contentResolver
+    val fileName = getFileNameFromContentUri(context, contentUri)
+
+    try {
+        val inputStream: InputStream? = contentResolver.openInputStream(contentUri)
+        if (inputStream != null) {
+            val outputFile = File(context.cacheDir, fileName.toString())
+            val outputStream = FileOutputStream(outputFile)
+            val buffer = ByteArray(1024)
+            var read: Int
+
+            while (inputStream.read(buffer).also { read = it } > 0) {
+                outputStream.write(buffer, 0, read)
+            }
+            outputStream.flush()
+            outputStream.close()
+            inputStream.close()
+
+            return outputFile.toUri()
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+
+    return null
+}
+
+private fun getFileNameFromContentUri(context: Context, contentUri: Uri): String? {
+    val contentResolver: ContentResolver = context.contentResolver
+    val cursor = contentResolver.query(contentUri, null, null, null, null)
+
+    cursor?.use {
+        if (it.moveToFirst()) {
+            val nameColumnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameColumnIndex != -1) {
+                return it.getString(nameColumnIndex)
+            }
+        }
+    }
+    return null
+}
