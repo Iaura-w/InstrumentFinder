@@ -10,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -52,40 +54,67 @@ class FileUploadViewModel(private val context: Context) : ViewModel() {
         _loading = true
         val startTime = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
-            val file = File(fileUri.path.orEmpty())
-            val requestFile = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
-            val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
-            val call = RetrofitInstance.getRetrofitService().uploadFile(body)
+            val originalFile = File(fileUri.path.orEmpty())
+            val file = createFileWithChangedName(originalFile, context)
 
-            call.enqueue(object : Callback<ResponseBody> {
-                override fun onResponse(
-                    call: Call<ResponseBody>,
-                    response: Response<ResponseBody>
-                ) {
-                    val endTime = System.currentTimeMillis()
-                    logResponseTime(startTime, endTime)
-                    handleResponse(response, fileName)
-                }
+            if (file.extension.lowercase(Locale.getDefault()) != "mp3") {
+                Log.d(TAG2, "Converting file to mp3")
 
-                override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
-                    _loading = false
-                    _serverResponse = "Network error: ${t.message}"
-                    Log.d(TAG2, "Upload error: ${t.message}")
+                convertToMp3(fileUri.path.toString(), context) { tempFile ->
+                    tempFile?.let {
+                        uploadFile(it, startTime, fileName, file, it)
+                    } ?: run {
+                        _loading = false
+                        _serverResponse = "File conversation error. Changing filename may help."
+                        Log.d(TAG2, "Conversation error")
+                    }
                 }
-            })
-            currentCall = call
+            } else {
+                uploadFile(file, startTime, fileName, file, null)
+            }
         }
+    }
+
+    private fun uploadFile(
+        file: File,
+        startTime: Long,
+        fileName: String,
+        sanitizedFile: File,
+        tempFile: File?
+    ) {
+        Log.d(TAG2, "Sending file: $file")
+        val requestFile = file.asRequestBody("multipart/form-data".toMediaTypeOrNull())
+        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+        val call = RetrofitInstance.getRetrofitService().uploadFile(body)
+
+        call.enqueue(object : Callback<ResponseBody> {
+            override fun onResponse(
+                call: Call<ResponseBody>,
+                response: Response<ResponseBody>
+            ) {
+                val endTime = System.currentTimeMillis()
+                logResponseTime(startTime, endTime)
+                handleResponse(response, fileName, sanitizedFile, tempFile)
+            }
+
+            override fun onFailure(call: Call<ResponseBody>, t: Throwable) {
+                _loading = false
+                _serverResponse = "Network error: ${t.message}"
+                Log.d(TAG2, "Upload error: ${t.message}")
+            }
+        })
+        currentCall = call
     }
 
     fun cancelUpload() {
         currentCall?.cancel()
         _loading = false
-        _serverResponse = "Upload cancelled"
+        _serverResponse = "Upload canceled"
     }
 
     private fun handleResponse(
-        response: Response<ResponseBody>,
-        fileName: String
+        response: Response<ResponseBody>, fileName: String,
+        sanitizedFile: File, tempFile: File?
     ) {
         _loading = false
         val gson = Gson()
@@ -102,6 +131,16 @@ class FileUploadViewModel(private val context: Context) : ViewModel() {
                 val responseEntity = gson.fromJson(it.string(), ResponseEntity::class.java)
                 _serverResponse = "Upload failed: " + responseEntity.message
                 logResponse(response, responseEntity)
+            }
+        }
+        if (sanitizedFile.exists()) {
+            Log.d(TAG2, "deleting: $sanitizedFile")
+            sanitizedFile.delete()
+        }
+        if (tempFile != null) {
+            if (tempFile.exists()) {
+                Log.d(TAG2, "deleting: $tempFile")
+                tempFile.delete()
             }
         }
     }
@@ -152,5 +191,50 @@ class FileUploadViewModel(private val context: Context) : ViewModel() {
             val type = object : TypeToken<List<HistoryItem>>() {}.type
             Gson().fromJson(historyJson, type)
         }
+    }
+
+    private fun convertToMp3(inputFilePath: String, context: Context, onComplete: (File?) -> Unit) {
+        val tempFile = File.createTempFile("converted_", ".mp3", context.cacheDir)
+        val filePath = inputFilePath.replace(Regex("[- ]"), "_")
+        Log.d(TAG2, "temp file absolute path: ${tempFile.absolutePath}")
+        Log.d(TAG2, "input file path: $filePath")
+        val command =
+            "-y -v debug -i $filePath -c:a libmp3lame -b:a 128k -ac 2 -ar 44100 -vn ${tempFile.absolutePath}"
+        FFmpegKit.executeAsync(command) { session ->
+            val returnCode = session.returnCode
+            if (ReturnCode.isSuccess(returnCode)) {
+                Log.d(TAG2, "file converted: $tempFile")
+                onComplete(tempFile)
+            } else {
+                Log.d(TAG2, "return code: ${returnCode}")
+                Log.d(
+                    TAG2,
+                    String.format(
+                        "Command failed with state %s and rc %s, %s, %s",
+                        session.state,
+                        session.returnCode,
+                        session.output,
+                        session.logs
+                    )
+                );
+                onComplete(null)
+            }
+        }
+    }
+
+    private fun changeFileName(fileName: String): String {
+        return fileName.replace(Regex("[- ]"), "_")
+    }
+
+    private fun createFileWithChangedName(originalFile: File, context: Context): File {
+        Log.d(TAG2, "creating file with changed name: $originalFile")
+        val changedFileName = changeFileName(originalFile.name)
+        val changedFile = File(originalFile.parent, changedFileName)
+
+        if (!changedFile.exists()) {
+            originalFile.copyTo(changedFile)
+        }
+
+        return changedFile
     }
 }
