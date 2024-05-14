@@ -1,4 +1,4 @@
-# Sound Instrument Recognition App
+# InstrumentFinder
 
 This Android application allows users to identify musical instruments based on audio file. The app utilizes machine learning model to classify the instruments.
 
@@ -12,7 +12,6 @@ This Android application allows users to identify musical instruments based on a
 - Stop button to interrupt file uploading
 
 ## Technologies Used
-
 ### Application
 - Kotlin
 - Android Jetpack (ViewModel, LiveData, ActivityResultLauncher)
@@ -31,6 +30,11 @@ To use the app, follow these steps:
 - Click the "Send" button to upload the file.
 - View the classification results.
 
+## Screenshots
+<img src="https://github.com/Iaura-w/InstrumentFinder/assets/26602440/81be471e-3d4a-4a77-ab22-89003ca422d3" height="450">
+<img src="https://github.com/Iaura-w/InstrumentFinder/assets/26602440/f724d8e0-0015-4dec-a4c5-e6eb4ba51c32" height="450">
+<img src="https://github.com/Iaura-w/InstrumentFinder/assets/26602440/dd6636a3-1305-4305-919b-535de943555d" height="450">
+<img src="https://github.com/Iaura-w/InstrumentFinder/assets/26602440/e71c23f4-1fe5-459d-a39f-36478d3ed777" height="450">
 
 ## Credits
 
