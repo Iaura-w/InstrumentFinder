@@ -38,5 +38,5 @@ To use the app, follow these steps:
 
 ## Credits
 
-This app was developed as part of a research project. The machine learning models were trained using the IRMAS dataset.
+This app was developed as part of research for my a master's thesis. The machine learning models were trained using the IRMAS dataset.
 
