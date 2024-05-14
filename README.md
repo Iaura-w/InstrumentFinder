@@ -9,7 +9,7 @@ This Android application allows users to identify musical instruments based on a
 - Classification of instruments including piano, violin, acoustic guitar, and cello
 - Display of classification results with probabilities for each instrument
 - History of recently uploaded files and server responses
-- Stop button to interrupt file uploading
+- Cancel button to interrupt file uploading
 
 ## Technologies Used
 ### Application
