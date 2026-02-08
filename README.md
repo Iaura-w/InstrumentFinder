@@ -2,6 +2,9 @@
 
 This Android application allows users to identify musical instruments based on audio file. The app utilizes machine learning model to classify the instruments.
 
+ ## Research
+ [InstrumentRecognitionResearch](https://github.com/Iaura-w/InstrumentRecognitionResearch) – A research project focused on the automatic classification of musical instruments (Piano, Violin, Acoustic Guitar, Cello) using Machine Learning and Deep Learning techniques.
+
  ## Features
 
 - Record and upload audio files
